@@ -1,6 +1,11 @@
 export type WerkStatus = 'vollständig' | 'zu prüfen' | 'unvollständig';
 export type Confidence = 'sicher' | 'Vorschlag, bitte prüfen';
 
+export interface GeoLocation {
+  lat: number;
+  lng: number;
+}
+
 /** Datenmodell pro Werk — Konzept Abschnitt 2. */
 export interface Werk {
   id: number;
@@ -28,13 +33,22 @@ export interface Werk {
   photoDataUrl?: string;
   /** Tafel-Foto beim Doppelscan (Konzept 4.1); nur gesetzt, wenn hasTafel true ist. */
   tafelPhotoDataUrl?: string;
+  /** Beim Scan best-effort per Browser-Geolocation erfasst — Basis für "Ihre Scankarte". */
+  location?: GeoLocation;
 }
 
-export type GalleryView = 'masonry' | 'list';
+/** Nutzerdefinierte, frei benennbare Sammlung (Ordner) — Sammlung-Tab "Sammlungen". */
+export interface WerkCollection {
+  id: string;
+  name: string;
+  workIds: number[];
+}
+
 export type ScanMode = 'single' | 'double' | null;
 export type ScanStep = 'scanning' | 'result' | null;
-export type Screen = 'tab' | 'detail' | 'artist' | 'korrektur';
-export type Tab = 'scan' | 'sammlung' | 'kuenstler' | 'suche' | 'mehr';
+export type Screen = 'tab' | 'detail' | 'artist' | 'korrektur' | 'settings' | 'collection';
+export type Tab = 'home' | 'scan' | 'sammlung' | 'entdecken';
+export type SammlungSubTab = 'bibliothek' | 'besuche' | 'sammlungen';
 
 /** Startpunkt-Epochenliste — Konzept Abschnitt 9 (frei erweiterbar). */
 export const EPOCHS = [

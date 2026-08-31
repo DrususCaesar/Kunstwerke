@@ -41,6 +41,29 @@ export function IconSearch({ size = 19 }: IconProps) {
   );
 }
 
+export function IconHome({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20">
+      <path
+        d="M2 9.5 10 2.5l8 7v8.2a1 1 0 0 1-1 1h-4.4v-6h-5.2v6H3a1 1 0 0 1-1-1z"
+        stroke="currentColor"
+        fill="none"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function IconCompass({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20">
+      <circle cx="10" cy="10" r="9" stroke="currentColor" fill="none" strokeWidth="1.4" />
+      <path d="M13.2 6.8 11 11l-4.2 2.2L9 9z" stroke="currentColor" fill="none" strokeWidth="1.3" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function IconMore({ size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20">
@@ -48,6 +71,35 @@ export function IconMore({ size = 20 }: IconProps) {
       <circle cx="6" cy="10" r="1.2" fill="currentColor" />
       <circle cx="10" cy="10" r="1.2" fill="currentColor" />
       <circle cx="14" cy="10" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function IconGear({ size = 19 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 19 19">
+      <circle cx="9.5" cy="9.5" r="2.6" stroke="currentColor" fill="none" strokeWidth="1.3" />
+      <path
+        d="M9.5 1.8v2.1M9.5 15.1v2.1M17.2 9.5h-2.1M3.9 9.5H1.8M15 4l-1.5 1.5M5.5 13.5 4 15M15 15l-1.5-1.5M5.5 5.5 4 4"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function IconPin({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14">
+      <path
+        d="M7 13S2 8.6 2 5.3a5 5 0 0 1 10 0C12 8.6 7 13 7 13Z"
+        stroke="currentColor"
+        fill="none"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <circle cx="7" cy="5.3" r="1.6" stroke="currentColor" fill="none" strokeWidth="1.1" />
     </svg>
   );
 }

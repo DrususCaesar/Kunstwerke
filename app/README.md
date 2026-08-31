@@ -1,18 +1,22 @@
 # Kunstwerke
 
-Private Katalogisierungs-App für selbst fotografierte Kunstwerke aus Museumsbesuchen — React/Vite-PWA-Reimplementierung des Claude-Design-Handoffs in `project/design_handoff_kunstwerke_app/`.
+Private Katalogisierungs-App für selbst fotografierte Kunstwerke aus Museumsbesuchen. Ursprünglich als React/Vite-PWA-Reimplementierung des Claude-Design-Handoffs in `project/design_handoff_kunstwerke_app/` gestartet, seither Struktur und Bildsprache an einer Referenz-App angeglichen (Home-Dashboard, 4-Tab-Navigation).
 
 ## Stand dieser Implementierung
 
-Alle 7 Screens (Scankarte, Sammlung, Künstler, Werk-Detail, Künstler-Detail, Korrekturmaske, Suche, Mehr) sind 1:1 nach dem Design-Handoff umgesetzt, inklusive Tab-/Push-Navigation, Filter-Chips, Masonry-/Listenansicht, Scan-Flow und Korrektur-Flow. Tab-Reihenfolge: Künstler, Suche, **Scankarte**, **Sammlung**, Mehr.
+**Navigation:** 4 Tabs — Home, Scannen, Sammlung, Entdecken. Push-Screens: Werk-Detail, Künstler-Detail, Korrekturmaske, Einstellungen (über das Zahnrad auf Home), Sammlungs-Detail.
 
-Die App arbeitet inzwischen mit **echten, selbst aufgenommenen/importierten Fotos** statt Beispieldaten:
+- **Home** (`screens/HomeScreen.tsx`): Begrüßung + Zahnrad zu den Einstellungen; "Zuletzt hinzugefügt"-Hero (ehrlicher Ersatz für ein KI-"Gemälde des Tages", das den Anthropic-Key bräuchte); Kürzliche Scans; Top-Künstler-Karussell (Wikipedia-Porträt oder Initiale); "Ihre Scankarte" (Leaflet/OpenStreetMap, kein Key nötig) mit den beim Scan erfassten Standorten; "Museen in der Nähe" über die kostenlose Overpass-API.
+- **Scannen** (`screens/ScanScreen.tsx`): Einzel-/Doppelscan über die native Kamera, Bulk-Import aus der Fotomediathek — beides echte Foto-Aufnahme (`services/camera.ts`), clientseitig komprimiert (`lib/image.ts`).
+- **Sammlung** (`screens/SammlungScreen.tsx`): Bibliothek (Listenzeilen mit Foto + farbiger Kante), Besuche (nach Museum gruppiert), Sammlungen (frei benennbare eigene Ordner, `screens/CollectionDetailScreen.tsx` zum Zuordnen).
+- **Entdecken** (`screens/EntdeckenScreen.tsx`): Volltextsuche + Künstlerliste (Wikipedia-Porträts).
 
-- **Einzel-/Doppelscan** (`services/camera.ts`) öffnen die native Kamera, das Foto wird clientseitig komprimiert (`lib/image.ts`) und landet direkt im Werk-Eintrag.
-- **Bulk-Import** öffnet die Fotomediathek mit Mehrfachauswahl und legt für jedes Foto einen leeren „zu prüfen"-Eintrag in der Korrekturmaske an.
-- Ohne Anthropic API-Key kann nichts erkannt werden — die Scan-/Import-Ergebnisse sind bewusst ehrlich leer („Unbenanntes Werk" / „Vorschlag, bitte prüfen") statt eines vorgetäuschten Treffers; Titel/Künstler trägt man über „Bearbeiten"/„Korrigieren" selbst ein.
-- Die Sammlung persistiert in `localStorage` (`state/CollectionContext.tsx`) und übersteht Reloads; **keine Beispielwerke mehr** — die App startet leer.
-- **Mehr**: Export als echter PDF-Katalog (`lib/pdfCatalog.ts`, jsPDF, per Klick nachgeladen), lokale Sicherung als JSON zum Herunterladen/Wiederherstellen (`lib/backup.ts`), echte Einstellung für die Standard-Galerieansicht. Karten-Ansicht und Freigabe & Zugriffsrechte bleiben Platzhalter (Karten-API bzw. Supabase nötig).
+Die App arbeitet mit **echten, selbst aufgenommenen/importierten Fotos** statt Beispieldaten — die Sammlung startet leer und persistiert in `localStorage`:
+
+- Ohne Anthropic API-Key kann nichts erkannt werden — Scan-/Import-Ergebnisse sind bewusst ehrlich leer („Unbenanntes Werk" / „Vorschlag, bitte prüfen") statt eines vorgetäuschten Treffers; Titel/Künstler trägt man über „Bearbeiten"/„Korrigieren" selbst ein.
+- Künstler-Porträts holt `services/artistPortrait.ts` automatisch über die kostenlose Wikipedia/Wikimedia-API (kein Key), sobald ein Werk mit echtem Künstlernamen bestätigt wird.
+- Standort wird beim Scan/Import best-effort per Browser-Geolocation erfasst (`services/geolocation.ts`, abschaltbar in den Einstellungen) — Basis für Karte und Museen-in-der-Nähe.
+- **Einstellungen**: Export als echter PDF-Katalog (`lib/pdfCatalog.ts`, jsPDF, per Klick nachgeladen), lokale Sicherung als JSON zum Herunterladen/Wiederherstellen (`lib/backup.ts`), Standort-Erfassung an/aus. Freigabe & Zugriffsrechte bleibt Platzhalter (braucht Supabase).
 
 Bewusst weiterhin **nicht** enthalten (siehe `src/services/*.ts` für TODO-Kommentare und Konzept-Verweise):
 
@@ -21,7 +25,7 @@ Bewusst weiterhin **nicht** enthalten (siehe `src/services/*.ts` für TODO-Komme
 - **`services/camera.ts`** — automatische Zuschnitt-/Perspektivkorrektur der Fotos fehlt noch.
 - **`services/offlineSync.ts`** — Sync-Warteschlange über mehrere Geräte; der Service Worker (vite-plugin-pwa) cacht bereits die App-Shell fürs Offline-Laden.
 
-`ios-frame.jsx` aus dem Handoff ist nur der Vorschau-Bezel und wird hier nicht verwendet — die App füllt den echten Viewport (Safe-Area-bewusst für Dynamic Island/Notch).
+`ios-frame.jsx` aus dem ursprünglichen Handoff ist nur der Vorschau-Bezel und wird hier nicht verwendet — die App füllt den echten Viewport (Safe-Area-bewusst für Dynamic Island/Notch).
 
 ## Entwicklung
 

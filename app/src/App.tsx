@@ -1,29 +1,28 @@
 import { CollectionProvider, useCollection } from './state/CollectionContext';
 import { TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
+import { HomeScreen } from './screens/HomeScreen';
 import { ScanScreen } from './screens/ScanScreen';
-import { GalleryScreen } from './screens/GalleryScreen';
-import { ArtistsScreen } from './screens/ArtistsScreen';
-import { SearchScreen } from './screens/SearchScreen';
-import { MoreScreen } from './screens/MoreScreen';
+import { SammlungScreen } from './screens/SammlungScreen';
+import { EntdeckenScreen } from './screens/EntdeckenScreen';
 import { WorkDetailScreen } from './screens/WorkDetailScreen';
 import { ArtistDetailScreen } from './screens/ArtistDetailScreen';
 import { KorrekturScreen } from './screens/KorrekturScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
+import { CollectionDetailScreen } from './screens/CollectionDetailScreen';
 import { SCREEN_TOP_PADDING } from './lib/layout';
 
 function TabContent() {
   const { state } = useCollection();
   switch (state.tab) {
+    case 'home':
+      return <HomeScreen />;
     case 'scan':
       return <ScanScreen />;
     case 'sammlung':
-      return <GalleryScreen />;
-    case 'kuenstler':
-      return <ArtistsScreen />;
-    case 'suche':
-      return <SearchScreen />;
-    case 'mehr':
-      return <MoreScreen />;
+      return <SammlungScreen />;
+    case 'entdecken':
+      return <EntdeckenScreen />;
     default:
       return null;
   }
@@ -31,8 +30,9 @@ function TabContent() {
 
 /**
  * Bildschirm-Navigation — s. Handoff README → "Interactions & Behavior".
- * Push-Screens (Werk-Detail, Künstler-Detail, Korrekturmaske) überdecken
- * den gesamten Screen inkl. Tab-Bar; ‹ kehrt zum zuletzt aktiven Tab zurück.
+ * Push-Screens (Werk-/Künstler-Detail, Korrekturmaske, Einstellungen,
+ * Sammlungs-Detail) überdecken den gesamten Screen inkl. Tab-Bar; ‹ kehrt
+ * zum zuletzt aktiven Tab zurück.
  */
 function AppShell() {
   const { state, actions } = useCollection();
@@ -52,6 +52,8 @@ function AppShell() {
       {state.screen === 'detail' && <WorkDetailScreen />}
       {state.screen === 'artist' && <ArtistDetailScreen />}
       {state.screen === 'korrektur' && <KorrekturScreen />}
+      {state.screen === 'settings' && <SettingsScreen />}
+      {state.screen === 'collection' && <CollectionDetailScreen />}
 
       {state.screen === 'tab' && (
         <>

@@ -1,13 +1,11 @@
 import type { Tab } from '../types';
-import { IconScan, IconGrid, IconPerson, IconSearch, IconMore } from './icons';
+import { IconHome, IconScan, IconGrid, IconCompass } from './icons';
 
-// Reihenfolge auf Wunsch: Scan in der Mitte, Sammlung direkt rechts davon.
 const TAB_DEF: { id: Tab; label: string; Icon: (props: { size?: number }) => React.JSX.Element }[] = [
-  { id: 'kuenstler', label: 'Künstler', Icon: IconPerson },
-  { id: 'suche', label: 'Suche', Icon: IconSearch },
-  { id: 'scan', label: 'Scankarte', Icon: IconScan },
+  { id: 'home', label: 'Home', Icon: IconHome },
+  { id: 'scan', label: 'Scannen', Icon: IconScan },
   { id: 'sammlung', label: 'Sammlung', Icon: IconGrid },
-  { id: 'mehr', label: 'Mehr', Icon: IconMore },
+  { id: 'entdecken', label: 'Entdecken', Icon: IconCompass },
 ];
 
 interface TabBarProps {

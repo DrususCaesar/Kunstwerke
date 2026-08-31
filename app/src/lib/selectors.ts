@@ -29,6 +29,26 @@ export function suggestedSearchTags(works: Werk[], limit = 5): string[] {
     .map(([label]) => label);
 }
 
+export interface MuseumVisit {
+  museum: string;
+  city: string;
+  works: Werk[];
+}
+
+/** Gruppiert nach Museum ("Besuche") — Konzept Abschnitt 5 ("Reise-/Besuchsgruppen"). */
+export function groupByMuseum(works: Werk[]): MuseumVisit[] {
+  const byMuseum = new Map<string, Werk[]>();
+  works.forEach((w) => {
+    if (!w.museum) return;
+    const list = byMuseum.get(w.museum) ?? [];
+    list.push(w);
+    byMuseum.set(w.museum, list);
+  });
+  return Array.from(byMuseum.entries())
+    .map(([museum, ws]) => ({ museum, city: ws[0].city, works: ws }))
+    .sort((a, b) => Math.max(...b.works.map((w) => w.id)) - Math.max(...a.works.map((w) => w.id)));
+}
+
 export interface ArtistSummary {
   call: string;
   full: string;
