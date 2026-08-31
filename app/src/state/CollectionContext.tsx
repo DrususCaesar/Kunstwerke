@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useReducer, useRef, type ReactNode } from 'react';
 import { recognizeArtwork, type RecognitionResult } from '../services/recognition';
 import { capturePhoto, pickPhotos } from '../services/camera';
-import { fileToCompressedPhoto } from '../lib/image';
+import { fileToCompressedPhoto, cropPhoto } from '../lib/image';
 import { getCurrentLocationBestEffort } from '../services/geolocation';
 import { isLocationCaptureEnabled } from '../lib/settings';
 import { fetchArtistPortrait } from '../services/artistPortrait';
@@ -310,15 +310,26 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
 
     dispatch({ type: 'START_SCAN', mode });
     const requestId = ++scanRequestId.current;
-    const [result, location] = await Promise.all([
-      recognizeArtwork(mode),
+    const [outcome, location] = await Promise.all([
+      recognizeArtwork({ primaryDataUrl: photoDataUrl, tafelDataUrl: tafelPhotoDataUrl }),
       isLocationCaptureEnabled() ? getCurrentLocationBestEffort() : Promise.resolve(null),
     ]);
     if (requestId !== scanRequestId.current) return; // veraltete Anfrage — Screen verlassen
+
+    if (outcome.crop) {
+      try {
+        const cropped = await cropPhoto(photoDataUrl, outcome.crop);
+        photoDataUrl = cropped.dataUrl;
+        aspect = cropped.aspect;
+      } catch (e) {
+        console.error('Zuschnitt konnte nicht angewendet werden', e);
+      }
+    }
+
     dispatch({
       type: 'SCAN_RESULT_READY',
       result: {
-        ...result,
+        ...outcome.fields,
         aspect,
         photoDataUrl,
         tafelPhotoDataUrl,
@@ -345,46 +356,50 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
       // Zeitlich nah aufgenommene Fotos zu einem Werk+Tafel-Eintrag verknüpfen
       // statt jedes Foto als eigenes Werk zu behandeln — Konzept 4.2.
       const pairs = pairPhotosByCaptureTime(files);
-      const newWorks: Werk[] = [];
-      for (const pair of pairs) {
-        try {
-          const { dataUrl, aspect } = await fileToCompressedPhoto(pair.primary);
-          let tafelPhotoDataUrl: string | undefined;
-          let tafelAspect: string | undefined;
-          if (pair.tafel) {
-            const compressedTafel = await fileToCompressedPhoto(pair.tafel);
-            tafelPhotoDataUrl = compressedTafel.dataUrl;
-            tafelAspect = compressedTafel.aspect;
+
+      const results = await Promise.all(
+        pairs.map(async (pair): Promise<Werk | null> => {
+          try {
+            let { dataUrl: photoDataUrl, aspect } = await fileToCompressedPhoto(pair.primary);
+            let tafelPhotoDataUrl: string | undefined;
+            let tafelAspect: string | undefined;
+            if (pair.tafel) {
+              const compressedTafel = await fileToCompressedPhoto(pair.tafel);
+              tafelPhotoDataUrl = compressedTafel.dataUrl;
+              tafelAspect = compressedTafel.aspect;
+            }
+
+            const outcome = await recognizeArtwork({ primaryDataUrl: photoDataUrl, tafelDataUrl: tafelPhotoDataUrl });
+            if (outcome.crop) {
+              try {
+                const cropped = await cropPhoto(photoDataUrl, outcome.crop);
+                photoDataUrl = cropped.dataUrl;
+                aspect = cropped.aspect;
+              } catch (e) {
+                console.error('Zuschnitt konnte nicht angewendet werden', e);
+              }
+            }
+
+            return {
+              ...outcome.fields,
+              id: nextId(),
+              status: 'zu prüfen',
+              hasTafel: !!tafelPhotoDataUrl,
+              aspect,
+              photoDataUrl,
+              tafelPhotoDataUrl,
+              tafelAspect,
+              dateAdded: 'gerade eben',
+              location: location ?? undefined,
+            };
+          } catch (e) {
+            console.error('Foto aus der Mediathek konnte nicht verarbeitet werden', e);
+            return null;
           }
-          newWorks.push({
-            id: nextId(),
-            artistFull: '',
-            artistCall: 'Unbekannt',
-            isNotname: true,
-            title: 'Unbenanntes Werk',
-            year: '',
-            epoch: '',
-            genre: '',
-            museum: '',
-            room: '',
-            city: '',
-            material: '',
-            tags: [],
-            notes: '',
-            status: 'zu prüfen',
-            confidence: 'Vorschlag, bitte prüfen',
-            hasTafel: !!tafelPhotoDataUrl,
-            aspect,
-            photoDataUrl: dataUrl,
-            tafelPhotoDataUrl,
-            tafelAspect,
-            dateAdded: 'gerade eben',
-            location: location ?? undefined,
-          });
-        } catch (e) {
-          console.error('Foto aus der Mediathek konnte nicht verarbeitet werden', e);
-        }
-      }
+        })
+      );
+
+      const newWorks = results.filter((w): w is Werk => w !== null);
       if (newWorks.length) dispatch({ type: 'IMPORT_WORKS', works: newWorks });
     },
     swapWorkTafelPhoto: (id) => dispatch({ type: 'SWAP_WORK_TAFEL_PHOTO', id }),

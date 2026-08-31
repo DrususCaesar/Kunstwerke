@@ -168,9 +168,9 @@ export function ScanScreen() {
               animation: 'spin 0.9s linear infinite',
             }}
           />
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Foto wird verarbeitet …</div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Foto wird analysiert …</div>
           <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'center', maxWidth: 220, lineHeight: 1.5 }}>
-            Noch keine Bilderkennung verbunden — Künstler, Titel und weitere Angaben trägst du im nächsten Schritt selbst ein
+            Künstler, Titel und weitere Angaben werden nach Möglichkeit automatisch erkannt — offene Felder trägst du im nächsten Schritt selbst ein
           </div>
         </div>
       )}
