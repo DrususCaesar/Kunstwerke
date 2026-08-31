@@ -31,8 +31,10 @@ export interface Werk {
   aspect: string;
   /** Echtes, clientseitig komprimiertes Foto (JPEG data: URL) — fehlt nur bei Alt-Einträgen ohne Foto. */
   photoDataUrl?: string;
-  /** Tafel-Foto beim Doppelscan (Konzept 4.1); nur gesetzt, wenn hasTafel true ist. */
+  /** Tafel-Foto beim Doppelscan/Bulk-Import-Paar (Konzept 4.1, 4.2); nur gesetzt, wenn hasTafel true ist. */
   tafelPhotoDataUrl?: string;
+  /** Seitenverhältnis des Tafel-Fotos, für einen sauberen Tausch mit dem Werkfoto. */
+  tafelAspect?: string;
   /** Beim Scan best-effort per Browser-Geolocation erfasst — Basis für "Ihre Scankarte". */
   location?: GeoLocation;
 }

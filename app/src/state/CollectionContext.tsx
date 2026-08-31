@@ -5,6 +5,7 @@ import { fileToCompressedPhoto } from '../lib/image';
 import { getCurrentLocationBestEffort } from '../services/geolocation';
 import { isLocationCaptureEnabled } from '../lib/settings';
 import { fetchArtistPortrait } from '../services/artistPortrait';
+import { pairPhotosByCaptureTime } from '../lib/pairing';
 import type { SammlungSubTab, Screen, ScanMode, ScanStep, Tab, Werk, WerkCollection } from '../types';
 
 /**
@@ -100,6 +101,7 @@ type Action =
   | { type: 'CONFIRM_WORK'; id: number }
   | { type: 'TOGGLE_EDIT'; id: number }
   | { type: 'UPDATE_WORK_FIELD'; id: number; field: EditableField; value: string }
+  | { type: 'SWAP_WORK_TAFEL_PHOTO'; id: number }
   | { type: 'RESTORE_WORKS'; works: Werk[] }
   | { type: 'CREATE_COLLECTION'; collection: WerkCollection }
   | { type: 'DELETE_COLLECTION'; id: string }
@@ -158,6 +160,21 @@ function reducer(state: CollectionState, action: Action): CollectionState {
         ...state,
         works: state.works.map((w) => (w.id === action.id ? { ...w, [action.field]: action.value } : w)),
       };
+    case 'SWAP_WORK_TAFEL_PHOTO':
+      return {
+        ...state,
+        works: state.works.map((w) =>
+          w.id === action.id && w.tafelPhotoDataUrl
+            ? {
+                ...w,
+                photoDataUrl: w.tafelPhotoDataUrl,
+                aspect: w.tafelAspect ?? w.aspect,
+                tafelPhotoDataUrl: w.photoDataUrl,
+                tafelAspect: w.aspect,
+              }
+            : w
+        ),
+      };
     case 'RESTORE_WORKS':
       return { ...state, works: action.works };
     case 'CREATE_COLLECTION':
@@ -207,6 +224,7 @@ interface CollectionActions {
   confirmWork(id: number): void;
   toggleEdit(id: number): void;
   updateWorkField(id: number, field: EditableField, value: string): void;
+  swapWorkTafelPhoto(id: number): void;
   restoreWorks(works: Werk[]): void;
   createCollection(name: string): void;
   deleteCollection(id: string): void;
@@ -276,11 +294,14 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
     }
 
     let tafelPhotoDataUrl: string | undefined;
+    let tafelAspect: string | undefined;
     if (mode === 'double') {
       const tafelPhoto = await capturePhoto();
       if (tafelPhoto) {
         try {
-          tafelPhotoDataUrl = (await fileToCompressedPhoto(tafelPhoto)).dataUrl;
+          const compressedTafel = await fileToCompressedPhoto(tafelPhoto);
+          tafelPhotoDataUrl = compressedTafel.dataUrl;
+          tafelAspect = compressedTafel.aspect;
         } catch (e) {
           console.error('Tafel-Foto konnte nicht verarbeitet werden', e);
         }
@@ -301,6 +322,7 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
         aspect,
         photoDataUrl,
         tafelPhotoDataUrl,
+        tafelAspect,
         hasTafel: !!tafelPhotoDataUrl,
         location: location ?? undefined,
       },
@@ -320,10 +342,20 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
       const files = await pickPhotos();
       if (!files.length) return;
       const location = isLocationCaptureEnabled() ? await getCurrentLocationBestEffort() : null;
+      // Zeitlich nah aufgenommene Fotos zu einem Werk+Tafel-Eintrag verknüpfen
+      // statt jedes Foto als eigenes Werk zu behandeln — Konzept 4.2.
+      const pairs = pairPhotosByCaptureTime(files);
       const newWorks: Werk[] = [];
-      for (const file of files) {
+      for (const pair of pairs) {
         try {
-          const { dataUrl, aspect } = await fileToCompressedPhoto(file);
+          const { dataUrl, aspect } = await fileToCompressedPhoto(pair.primary);
+          let tafelPhotoDataUrl: string | undefined;
+          let tafelAspect: string | undefined;
+          if (pair.tafel) {
+            const compressedTafel = await fileToCompressedPhoto(pair.tafel);
+            tafelPhotoDataUrl = compressedTafel.dataUrl;
+            tafelAspect = compressedTafel.aspect;
+          }
           newWorks.push({
             id: nextId(),
             artistFull: '',
@@ -341,9 +373,11 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
             notes: '',
             status: 'zu prüfen',
             confidence: 'Vorschlag, bitte prüfen',
-            hasTafel: false,
+            hasTafel: !!tafelPhotoDataUrl,
             aspect,
             photoDataUrl: dataUrl,
+            tafelPhotoDataUrl,
+            tafelAspect,
             dateAdded: 'gerade eben',
             location: location ?? undefined,
           });
@@ -353,6 +387,7 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
       }
       if (newWorks.length) dispatch({ type: 'IMPORT_WORKS', works: newWorks });
     },
+    swapWorkTafelPhoto: (id) => dispatch({ type: 'SWAP_WORK_TAFEL_PHOTO', id }),
     confirmScanResult: () => {
       if (!state.scanResult) return;
       const work: Werk = { ...state.scanResult, id: nextId(), status: 'zu prüfen', dateAdded: 'gerade eben' };

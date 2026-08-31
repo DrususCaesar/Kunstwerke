@@ -93,6 +93,17 @@ export function KorrekturScreen() {
                 </div>
                 <Badge label={item.confidence} variant={confidenceVariant(item.confidence)} />
               </div>
+              {item.hasTafel && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--text-quaternary)' }}>
+                  <span>Werk + Tafel als Paar erkannt</span>
+                  <button
+                    onClick={() => actions.swapWorkTafelPhoto(item.id)}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent-gold)', fontSize: 11, cursor: 'pointer' }}
+                  >
+                    Fotos tauschen
+                  </button>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   onClick={() => actions.confirmWork(item.id)}
