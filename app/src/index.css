@@ -1,0 +1,121 @@
+/* ── Design tokens ──────────────────────────────────────────────
+   Source: design_handoff_kunstwerke_app/README.md → "Design Tokens".
+   Kept as oklch() exactly as specified by the design handoff. */
+:root {
+  --bg-app: oklch(0.16 0.012 50);
+  --bg-card: oklch(0.20 0.014 50);
+  --bg-card-light: oklch(0.24 0.016 50);
+  --bg-input: oklch(0.22 0.015 50);
+  --bg-input-border: oklch(0.4 0.02 55);
+
+  --border: oklch(0.28 0.014 50 / 0.5);
+  --border-strong: oklch(0.32 0.014 50 / 0.6);
+
+  --text-primary: oklch(0.94 0.01 60);
+  --text-secondary: oklch(0.76 0.018 55);
+  --text-tertiary: oklch(0.55 0.015 55);
+  --text-quaternary: oklch(0.5 0.015 55);
+  --text-outline-btn: oklch(0.85 0.01 60);
+  --text-muted: oklch(0.6 0.015 55);
+
+  --accent-gold: oklch(0.78 0.13 75);
+  --accent-gold-bg: oklch(0.78 0.13 75 / 0.16);
+  --accent-gold-text-on: oklch(0.16 0.03 75);
+
+  --accent-terracotta: oklch(0.72 0.13 35);
+  --accent-terracotta-bg: oklch(0.72 0.13 35 / 0.18);
+
+  --font-serif: 'Source Serif 4', serif;
+  --font-sans: 'Work Sans', -apple-system, system-ui, sans-serif;
+  --font-mono: 'SF Mono', Menlo, monospace;
+
+  --radius-lg: 14px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --radius-pill: 100px;
+
+  --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  height: 100%;
+}
+
+a {
+  color: var(--accent-gold);
+  text-decoration: none;
+}
+a:hover {
+  color: oklch(0.82 0.13 75);
+}
+
+button,
+input {
+  font-family: inherit;
+}
+
+input::placeholder {
+  color: var(--text-quaternary);
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
