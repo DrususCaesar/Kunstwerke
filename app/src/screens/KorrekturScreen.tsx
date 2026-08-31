@@ -29,7 +29,13 @@ export function KorrekturScreen() {
           return (
             <div key={item.id} style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', gap: 10 }}>
-                <PlaceholderArt seed={item.id} radius={8} style={{ width: 52, height: 52, flexShrink: 0 }} />
+                <PlaceholderArt
+                  seed={item.id}
+                  photoDataUrl={item.photoDataUrl}
+                  alt={item.title}
+                  radius={8}
+                  style={{ width: 52, height: 52, flexShrink: 0 }}
+                />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {editing ? (
                     <>
@@ -64,14 +70,23 @@ export function KorrekturScreen() {
                     </>
                   ) : (
                     <>
-                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-serif)',
+                          fontSize: 14,
+                          fontWeight: 500,
+                          letterSpacing: '-0.01em',
+                          color: 'var(--text-primary)',
+                          lineHeight: 1.3,
+                        }}
+                      >
                         {item.title}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
                         <ArtistName werk={item} />
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-quaternary)', marginTop: 2 }}>
-                        {item.year} · {item.museum}
+                        {item.year || item.museum ? [item.year, item.museum].filter(Boolean).join(' · ') : 'Angaben offen'}
                       </div>
                     </>
                   )}

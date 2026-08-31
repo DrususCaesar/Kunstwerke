@@ -36,7 +36,7 @@ export function GalleryScreen() {
         <div style={{ columnCount: 2, columnGap: 10 }}>
           {filtered.map((w) => (
             <div key={w.id} onClick={() => actions.openDetail(w.id)} style={{ breakInside: 'avoid', marginBottom: 10, cursor: 'pointer' }}>
-              <PlaceholderArt seed={w.id} aspect={w.aspect} radius={10} padding={8}>
+              <PlaceholderArt seed={w.id} photoDataUrl={w.photoDataUrl} alt={w.title} aspect={w.aspect} radius={10} padding={8}>
                 <span
                   style={{
                     fontFamily: 'var(--font-mono)',
@@ -55,6 +55,8 @@ export function GalleryScreen() {
                   color: 'var(--text-primary)',
                   marginTop: 5,
                   fontFamily: 'var(--font-serif)',
+                  fontWeight: 500,
+                  letterSpacing: '-0.01em',
                   lineHeight: 1.25,
                 }}
               >
@@ -74,13 +76,21 @@ export function GalleryScreen() {
               onClick={() => actions.openDetail(w.id)}
               style={{ display: 'flex', gap: 12, padding: '10px 0', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
             >
-              <PlaceholderArt seed={w.id} radius={8} style={{ width: 46, height: 46, flexShrink: 0 }} />
+              <PlaceholderArt
+                seed={w.id}
+                photoDataUrl={w.photoDataUrl}
+                alt={w.title}
+                radius={8}
+                style={{ width: 46, height: 46, flexShrink: 0 }}
+              />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
                     fontSize: 13,
                     color: 'var(--text-primary)',
                     fontFamily: 'var(--font-serif)',
+                    fontWeight: 500,
+                    letterSpacing: '-0.01em',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',

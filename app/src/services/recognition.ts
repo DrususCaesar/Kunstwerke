@@ -3,10 +3,17 @@ import type { Confidence, ScanMode, Werk } from '../types';
 /**
  * Stub für die KI-gestützte Werkerkennung — Konzept Abschnitt 4.1, 4.2, 7.
  *
+ * Ohne Anthropic API-Key kann hier ehrlich nichts erkannt werden: statt wie
+ * im Design-Prototyp ein festes Beispielwerk vorzutäuschen, liefert dieser
+ * Stub ein leeres Werk mit Konfidenz "Vorschlag, bitte prüfen" — die
+ * Nutzerin/der Nutzer trägt die Felder über "Bearbeiten"/die Korrekturmaske
+ * selbst ein.
+ *
  * TODO(Produktivversion): durch einen Server-Aufruf der Claude Vision API
  * ersetzen (der API-Key darf nicht im Client liegen):
  *  - Tafel-Foto vorhanden → OCR + Verständnis (Künstler/Titel/Jahr/Material),
- *    auch bei Schrägaufnahmen/Teilverdeckung.
+ *    auch bei Schrägaufnahmen/Teilverdeckung. Erst dann rechtfertigt ein
+ *    Doppelscan wieder die pauschale Konfidenz "sicher" aus dem Design.
  *  - nur Werk-Foto → Stilerkennung anhand Bildmerkmalen, ehrliche Konfidenz
  *    ("sicher" / "Vorschlag, bitte prüfen").
  *  - Deutsche kanonische Schreibweise für Künstler/Titel vorgeben (Konzept 6).
@@ -19,32 +26,30 @@ const RECOGNITION_DELAY_MS = 900;
 
 export type RecognitionResult = Omit<Werk, 'id' | 'status' | 'dateAdded'>;
 
-const MOCK_RESULT: Omit<RecognitionResult, 'confidence'> = {
-  artistFull: 'Peter Paul Rubens',
-  artistCall: 'Peter Paul Rubens',
-  isNotname: false,
-  title: 'Das Pelzchen',
-  year: 'um 1638',
-  epoch: 'Barock',
-  genre: 'Gemälde',
-  museum: 'Kunsthistorisches Museum',
-  room: 'Saal X',
-  city: 'Wien, Österreich',
-  material: 'Öl auf Holz',
-  tags: ['Porträt'],
-  notes: '',
-  hasTafel: false,
-  aspect: '3/4',
-};
+function blankResult(): Omit<RecognitionResult, 'confidence'> {
+  return {
+    artistFull: '',
+    artistCall: 'Unbekannt',
+    isNotname: true,
+    title: 'Unbenanntes Werk',
+    year: '',
+    epoch: '',
+    genre: '',
+    museum: '',
+    room: '',
+    city: '',
+    material: '',
+    tags: [],
+    notes: '',
+    hasTafel: false,
+    aspect: '3/4',
+  };
+}
 
-/**
- * Simuliert Aufnahme + KI-Analyse. Doppelscan (Werk + Tafel) liefert dank
- * Tafel-Text immer "sicher", Einzelscan ohne Tafel ehrlich "Vorschlag, bitte
- * prüfen" — s. Handoff README → Scankarte "States".
- */
-export function recognizeArtwork(mode: ScanMode): Promise<RecognitionResult> {
-  const confidence: Confidence = mode === 'double' ? 'sicher' : 'Vorschlag, bitte prüfen';
+/** Simuliert die Analysezeit; das Ergebnis bleibt bis zur echten Vision-API-Anbindung leer. */
+export function recognizeArtwork(_mode: ScanMode): Promise<RecognitionResult> {
+  const confidence: Confidence = 'Vorschlag, bitte prüfen';
   return new Promise((resolve) => {
-    setTimeout(() => resolve({ ...MOCK_RESULT, confidence }), RECOGNITION_DELAY_MS);
+    setTimeout(() => resolve({ ...blankResult(), confidence }), RECOGNITION_DELAY_MS);
   });
 }

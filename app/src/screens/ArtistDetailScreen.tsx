@@ -33,12 +33,23 @@ export function ArtistDetailScreen() {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '16px 20px 32px' }}>
         {artist.works.map((w) => (
           <div key={w.id} onClick={() => actions.openDetail(w.id)} style={{ width: 'calc(50% - 5px)', cursor: 'pointer' }}>
-            <PlaceholderArt seed={w.id} aspect={w.aspect} radius={10}>
+            <PlaceholderArt seed={w.id} photoDataUrl={w.photoDataUrl} alt={w.title} aspect={w.aspect} radius={10}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'oklch(0.6 0.02 55)', textAlign: 'center', padding: 6 }}>
                 {w.title}
               </span>
             </PlaceholderArt>
-            <div style={{ fontSize: 12, color: 'var(--text-primary)', marginTop: 6, fontFamily: 'var(--font-serif)' }}>{w.title}</div>
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-primary)',
+                marginTop: 6,
+                fontFamily: 'var(--font-serif)',
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {w.title}
+            </div>
             <div style={{ fontSize: 10.5, color: 'var(--text-quaternary)' }}>{w.year}</div>
           </div>
         ))}

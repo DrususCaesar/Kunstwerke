@@ -10,6 +10,9 @@ export function WorkDetailScreen() {
   const work = state.works.find((w) => w.id === state.selectedWorkId);
   if (!work) return null;
 
+  const meta = [work.year, work.epoch, work.genre].filter(Boolean).join(' · ');
+  const museumLine = work.museum && work.room ? `${work.museum}, ${work.room}` : work.museum || work.room;
+
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--bg-app)', zIndex: 30, overflowY: 'auto', animation: 'fadeUp 0.25s ease' }}>
       <div
@@ -24,14 +27,13 @@ export function WorkDetailScreen() {
           boxSizing: 'border-box',
         }}
       >
-        <PlaceholderArt seed={work.id} radius={0} style={{ position: 'absolute', inset: 0 }} />
-        <div style={{ position: 'relative' }}>
+        <PlaceholderArt seed={work.id} photoDataUrl={work.photoDataUrl} alt={work.title} radius={0} style={{ position: 'absolute', inset: 0 }}>
           <MonoLabel>
             WERKFOTO
             <br />
             {work.title}
           </MonoLabel>
-        </div>
+        </PlaceholderArt>
         <CircleButton onClick={actions.closeScreen} style={{ position: 'absolute', top: SCREEN_TOP_PADDING, left: 14 }}>
           ‹
         </CircleButton>
@@ -43,15 +45,22 @@ export function WorkDetailScreen() {
 
       <div style={{ padding: '20px 20px 32px', display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 23, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: 23,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+              color: 'var(--text-primary)',
+              lineHeight: 1.3,
+            }}
+          >
             {work.title}
           </div>
           <div style={{ fontSize: 14, marginTop: 6, color: 'var(--text-secondary)' }}>
             <ArtistName werk={work} />
           </div>
-          <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)', marginTop: 4 }}>
-            {work.year} · {work.epoch} · {work.genre}
-          </div>
+          {meta && <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)', marginTop: 4 }}>{meta}</div>}
         </div>
 
         <Badge label={work.status} variant={statusVariant(work.status)} dot />
@@ -59,7 +68,7 @@ export function WorkDetailScreen() {
         <div style={{ height: 1, background: 'var(--border-strong)' }} />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-          <MetaRow label="Museum" value={`${work.museum}, ${work.room}`} />
+          <MetaRow label="Museum" value={museumLine} />
           <MetaRow label="Ort / Stadt" value={work.city} />
           <MetaRow label="Material/Technik" value={work.material} />
           <MetaRow label="Aufnahmedatum" value={work.dateAdded} />
@@ -70,59 +79,59 @@ export function WorkDetailScreen() {
             <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-quaternary)', marginBottom: 8 }}>
               Beleg · Tafel-Foto
             </div>
-            <div
-              style={{
-                width: 104,
-                height: 78,
-                borderRadius: 8,
-                background: 'repeating-linear-gradient(135deg, oklch(0.26 0.015 50) 0 8px, oklch(0.22 0.013 50) 8px 16px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px solid var(--border-strong)',
-              }}
+            <PlaceholderArt
+              seed={work.id + 1}
+              photoDataUrl={work.tafelPhotoDataUrl}
+              alt="Tafel-Foto"
+              radius={8}
+              style={{ width: 104, height: 78, border: work.tafelPhotoDataUrl ? undefined : '1px solid var(--border-strong)' }}
             >
               <MonoLabel size={8}>TAFEL</MonoLabel>
+            </PlaceholderArt>
+          </div>
+        )}
+
+        {work.tags.length > 0 && (
+          <div>
+            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-quaternary)', marginBottom: 6 }}>
+              Tags
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {work.tags.map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    fontSize: 12,
+                    padding: '4px 10px',
+                    borderRadius: 'var(--radius-pill)',
+                    background: 'var(--bg-card-light)',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           </div>
         )}
 
-        <div>
-          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-quaternary)', marginBottom: 6 }}>
-            Tags
+        {work.notes && (
+          <div>
+            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-quaternary)', marginBottom: 6 }}>
+              Eigene Notizen
+            </div>
+            <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.5, fontStyle: 'italic', fontFamily: 'var(--font-serif)' }}>
+              {work.notes}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {work.tags.map((tag) => (
-              <span
-                key={tag}
-                style={{
-                  fontSize: 12,
-                  padding: '4px 10px',
-                  borderRadius: 'var(--radius-pill)',
-                  background: 'var(--bg-card-light)',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-quaternary)', marginBottom: 6 }}>
-            Eigene Notizen
-          </div>
-          <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.5, fontStyle: 'italic', fontFamily: 'var(--font-serif)' }}>
-            {work.notes}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
       <span style={{ color: 'var(--text-tertiary)' }}>{label}</span>

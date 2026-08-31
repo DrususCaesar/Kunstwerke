@@ -8,10 +8,28 @@ interface PlaceholderArtProps {
   padding?: number | string;
   children?: ReactNode;
   style?: CSSProperties;
+  /** Echtes Foto (data: URL) — wenn gesetzt, ersetzt es den gestreiften Platzhalter 1:1. */
+  photoDataUrl?: string;
+  alt?: string;
 }
 
-/** Werkfoto-/Tafelfoto-Platzhalter — gestreiftes Muster + zentrierter Inhalt. */
-export function PlaceholderArt({ seed, aspect, radius = 10, padding, children, style }: PlaceholderArtProps) {
+/** Werkfoto-/Tafelfoto-Fläche: echtes Foto, wenn vorhanden — sonst der gestreifte Platzhalter. */
+export function PlaceholderArt({ seed, aspect, radius = 10, padding, children, style, photoDataUrl, alt }: PlaceholderArtProps) {
+  if (photoDataUrl) {
+    return (
+      <div
+        style={{
+          borderRadius: radius,
+          aspectRatio: aspect,
+          overflow: 'hidden',
+          ...style,
+        }}
+      >
+        <img src={photoDataUrl} alt={alt ?? ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      </div>
+    );
+  }
+
   return (
     <div
       style={{

@@ -85,7 +85,7 @@ export function ScanScreen() {
           </div>
 
           <button
-            onClick={actions.startBulkImport}
+            onClick={actions.importFromLibrary}
             style={{
               width: '100%',
               padding: 13,
@@ -126,7 +126,13 @@ export function ScanScreen() {
                   borderBottom: '1px solid var(--border)',
                 }}
               >
-                <PlaceholderArt seed={w.id} style={{ width: 38, height: 38, flexShrink: 0 }} radius={7} />
+                <PlaceholderArt
+                  seed={w.id}
+                  photoDataUrl={w.photoDataUrl}
+                  alt={w.title}
+                  style={{ width: 38, height: 38, flexShrink: 0 }}
+                  radius={7}
+                />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
@@ -136,6 +142,8 @@ export function ScanScreen() {
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       fontFamily: 'var(--font-serif)',
+                      fontWeight: 500,
+                      letterSpacing: '-0.01em',
                     }}
                   >
                     {w.title}
@@ -160,29 +168,38 @@ export function ScanScreen() {
               animation: 'spin 0.9s linear infinite',
             }}
           />
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>KI-Analyse läuft …</div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Foto wird verarbeitet …</div>
           <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'center', maxWidth: 220, lineHeight: 1.5 }}>
-            Künstler, Titel und Material werden aus dem Foto extrahiert
+            Noch keine Bilderkennung verbunden — Künstler, Titel und weitere Angaben trägst du im nächsten Schritt selbst ein
           </div>
         </div>
       )}
 
       {state.scanStep === 'result' && state.scanResult && (
         <div style={{ animation: 'fadeUp 0.3s ease' }}>
-          <PlaceholderArt seed={999} aspect="4/3" radius={12} style={{ marginBottom: 14 }}>
+          <PlaceholderArt
+            seed={999}
+            photoDataUrl={state.scanResult.photoDataUrl}
+            alt="Soeben aufgenommenes Werkfoto"
+            aspect={state.scanResult.aspect}
+            radius={12}
+            style={{ marginBottom: 14 }}
+          >
             <MonoLabel>WERKFOTO · SOEBEN AUFGENOMMEN</MonoLabel>
           </PlaceholderArt>
           <div style={{ marginBottom: 12 }}>
             <Badge label={state.scanResult.confidence} variant={confidenceVariant(state.scanResult.confidence)} dot={false} />
           </div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, color: 'var(--text-primary)' }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>
             {state.scanResult.title}
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
             <ArtistName werk={state.scanResult} />
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2, marginBottom: 20 }}>
-            {state.scanResult.year} · {state.scanResult.museum}
+            {state.scanResult.year || state.scanResult.museum
+              ? [state.scanResult.year, state.scanResult.museum].filter(Boolean).join(' · ')
+              : 'Angaben noch offen'}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button

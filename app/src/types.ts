@@ -24,6 +24,10 @@ export interface Werk {
   hasTafel: boolean;
   /** CSS aspect-ratio des Werkfotos, z. B. "4/3" oder "3/4". */
   aspect: string;
+  /** Echtes, clientseitig komprimiertes Foto (JPEG data: URL) — fehlt nur bei Alt-Einträgen ohne Foto. */
+  photoDataUrl?: string;
+  /** Tafel-Foto beim Doppelscan (Konzept 4.1); nur gesetzt, wenn hasTafel true ist. */
+  tafelPhotoDataUrl?: string;
 }
 
 export type GalleryView = 'masonry' | 'list';

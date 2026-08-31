@@ -13,8 +13,20 @@ export function filterWorks(works: Werk[], activeChips: string[]): Werk[] {
 }
 
 export function chipLabels(works: Werk[]): string[] {
-  const dynamic = Array.from(new Set(works.flatMap((w) => [w.epoch, w.genre])));
+  const dynamic = Array.from(new Set(works.flatMap((w) => [w.epoch, w.genre]).filter(Boolean)));
   return [...dynamic, 'vollständig', 'zu prüfen', 'unvollständig'];
+}
+
+/** Häufigste Epochen/Tags der eigenen Sammlung als Suchvorschläge (statt fixer Beispielwerte). */
+export function suggestedSearchTags(works: Werk[], limit = 5): string[] {
+  const counts = new Map<string, number>();
+  works.forEach((w) => {
+    [w.epoch, ...w.tags].filter(Boolean).forEach((label) => counts.set(label, (counts.get(label) ?? 0) + 1));
+  });
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([label]) => label);
 }
 
 export interface ArtistSummary {
@@ -81,7 +93,10 @@ const MONTH_KEYS = ['januar', 'februar', 'märz', 'april', 'mai', 'juni', 'juli'
 
 export function collectionStats(works: Werk[]): CollectionStats {
   const epochCounts = new Map<string, number>();
-  works.forEach((w) => epochCounts.set(w.epoch, (epochCounts.get(w.epoch) ?? 0) + 1));
+  works.forEach((w) => {
+    if (!w.epoch) return; // noch nicht befüllte Felder zählen nicht als Epoche
+    epochCounts.set(w.epoch, (epochCounts.get(w.epoch) ?? 0) + 1);
+  });
   const topEpoch = [...epochCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '–';
 
   const monthCounts = MONTH_KEYS.map(() => 0);
@@ -94,7 +109,7 @@ export function collectionStats(works: Werk[]): CollectionStats {
 
   return {
     total: works.length,
-    museums: new Set(works.map((w) => w.museum)).size,
+    museums: new Set(works.map((w) => w.museum).filter(Boolean)).size,
     topEpoch,
     chart,
   };

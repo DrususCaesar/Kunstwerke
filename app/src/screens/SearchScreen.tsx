@@ -1,15 +1,14 @@
 import { useMemo } from 'react';
 import { useCollection } from '../state/CollectionContext';
-import { searchWorks } from '../lib/selectors';
+import { searchWorks, suggestedSearchTags } from '../lib/selectors';
 import { PlaceholderArt } from '../components/PlaceholderArt';
 import { ArtistName } from '../components/ArtistName';
-
-const SUGGESTED_TAGS = ['Barock', 'Uffizien', 'Selbstbildnis', 'Skulptur', 'Rembrandt'];
 
 export function SearchScreen() {
   const { state, actions } = useCollection();
   const query = state.searchQuery.trim();
   const results = useMemo(() => searchWorks(state.works, state.searchQuery), [state.works, state.searchQuery]);
+  const suggestions = useMemo(() => suggestedSearchTags(state.works), [state.works]);
 
   return (
     <div style={{ padding: '6px 20px 24px' }}>
@@ -32,7 +31,7 @@ export function SearchScreen() {
         }}
       />
 
-      {query.length === 0 && (
+      {query.length === 0 && suggestions.length > 0 && (
         <>
           <div
             style={{
@@ -46,7 +45,7 @@ export function SearchScreen() {
             Vorschläge
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-            {SUGGESTED_TAGS.map((tag) => (
+            {suggestions.map((tag) => (
               <button
                 key={tag}
                 onClick={() => actions.setSearchQuery(tag)}
@@ -67,6 +66,12 @@ export function SearchScreen() {
         </>
       )}
 
+      {query.length === 0 && suggestions.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-quaternary)', fontSize: 13 }}>
+          Noch keine Werke erfasst — über die Scankarte oder den Import geht's los.
+        </div>
+      )}
+
       {query.length > 0 && results.length > 0 && (
         <>
           <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 10 }}>{results.length} Ergebnisse</div>
@@ -77,9 +82,25 @@ export function SearchScreen() {
                 onClick={() => actions.openDetail(w.id)}
                 style={{ display: 'flex', gap: 12, padding: '10px 0', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
               >
-                <PlaceholderArt seed={w.id} radius={8} style={{ width: 44, height: 44, flexShrink: 0 }} />
+                <PlaceholderArt
+                  seed={w.id}
+                  photoDataUrl={w.photoDataUrl}
+                  alt={w.title}
+                  radius={8}
+                  style={{ width: 44, height: 44, flexShrink: 0 }}
+                />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'var(--font-serif)' }}>{w.title}</div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-serif)',
+                      fontWeight: 500,
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
+                    {w.title}
+                  </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                     <ArtistName werk={w} />
                   </div>

@@ -1,13 +1,14 @@
 import { createContext, useContext, useEffect, useReducer, useRef, type ReactNode } from 'react';
-import { SAMPLE_WORKS } from '../data/sampleWorks';
 import { recognizeArtwork, type RecognitionResult } from '../services/recognition';
+import { capturePhoto, pickPhotos } from '../services/camera';
+import { fileToCompressedPhoto } from '../lib/image';
 import type { GalleryView, Screen, ScanMode, ScanStep, Tab, Werk } from '../types';
 
 /**
  * Zentraler App-Zustand — s. Handoff README → "State Management".
- * TODO(Produktivversion): `works` durch Supabase-Queries ersetzen
- * (src/services/backend.ts), Offline-Fälle lokal cachen und bei
- * Internetverbindung syncen (Konzept Abschnitt 4.1, 7).
+ * `works` liegt (mangels Supabase-Anbindung, s. src/services/backend.ts)
+ * persistiert in localStorage statt nur im Arbeitsspeicher, damit Einträge
+ * einen Reload überleben.
  */
 interface CollectionState {
   works: Werk[];
@@ -23,25 +24,56 @@ interface CollectionState {
   scanResult: RecognitionResult | null;
   editingId: number | null;
   toast: string | null;
-  nextId: number;
 }
 
-const initialState: CollectionState = {
-  works: SAMPLE_WORKS,
-  tab: 'scan',
-  screen: 'tab',
-  selectedWorkId: null,
-  selectedArtistCall: null,
-  galleryView: 'masonry',
-  activeChips: [],
-  searchQuery: '',
-  scanMode: null,
-  scanStep: null,
-  scanResult: null,
-  editingId: null,
-  toast: null,
-  nextId: 100,
-};
+const WORKS_STORAGE_KEY = 'kunstwerke:works:v1';
+const GALLERY_VIEW_STORAGE_KEY = 'kunstwerke:default-gallery-view:v1';
+
+function loadPersistedWorks(): Werk[] {
+  try {
+    const raw = localStorage.getItem(WORKS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistWorks(works: Werk[]) {
+  try {
+    localStorage.setItem(WORKS_STORAGE_KEY, JSON.stringify(works));
+  } catch {
+    // Speicher voll oder nicht verfügbar (privates Fenster etc.) — Persistenz
+    // ist best-effort, die App bleibt für die laufende Sitzung nutzbar.
+  }
+}
+
+function loadDefaultGalleryView(): GalleryView {
+  try {
+    return localStorage.getItem(GALLERY_VIEW_STORAGE_KEY) === 'list' ? 'list' : 'masonry';
+  } catch {
+    return 'masonry';
+  }
+}
+
+function makeInitialState(): CollectionState {
+  return {
+    works: loadPersistedWorks(),
+    tab: 'scan',
+    screen: 'tab',
+    selectedWorkId: null,
+    selectedArtistCall: null,
+    galleryView: loadDefaultGalleryView(),
+    activeChips: [],
+    searchQuery: '',
+    scanMode: null,
+    scanStep: null,
+    scanResult: null,
+    editingId: null,
+    toast: null,
+  };
+}
 
 type EditableField = 'title' | 'artistCall';
 
@@ -52,14 +84,17 @@ type Action =
   | { type: 'CLOSE_SCREEN' }
   | { type: 'START_SCAN'; mode: Exclude<ScanMode, null> }
   | { type: 'SCAN_RESULT_READY'; result: RecognitionResult }
-  | { type: 'START_BULK_IMPORT' }
+  | { type: 'CANCEL_SCAN' }
   | { type: 'ADD_WORK'; work: Werk; goToKorrektur: boolean }
+  | { type: 'IMPORT_WORKS'; works: Werk[] }
   | { type: 'TOGGLE_CHIP'; label: string }
   | { type: 'TOGGLE_GALLERY_VIEW' }
+  | { type: 'SET_GALLERY_VIEW'; view: GalleryView }
   | { type: 'SET_SEARCH_QUERY'; query: string }
   | { type: 'CONFIRM_WORK'; id: number }
   | { type: 'TOGGLE_EDIT'; id: number }
   | { type: 'UPDATE_WORK_FIELD'; id: number; field: EditableField; value: string }
+  | { type: 'RESTORE_WORKS'; works: Werk[] }
   | { type: 'SHOW_TOAST'; message: string }
   | { type: 'HIDE_TOAST' };
 
@@ -78,8 +113,8 @@ function reducer(state: CollectionState, action: Action): CollectionState {
     case 'SCAN_RESULT_READY':
       if (state.scanStep !== 'scanning') return state; // Nutzer hat den Screen bereits verlassen
       return { ...state, scanStep: 'result', scanResult: action.result };
-    case 'START_BULK_IMPORT':
-      return { ...state, screen: 'korrektur' };
+    case 'CANCEL_SCAN':
+      return { ...state, scanMode: null, scanStep: null, scanResult: null };
     case 'ADD_WORK':
       return {
         ...state,
@@ -87,9 +122,10 @@ function reducer(state: CollectionState, action: Action): CollectionState {
         scanStep: null,
         scanMode: null,
         scanResult: null,
-        nextId: state.nextId + 1,
         screen: action.goToKorrektur ? 'korrektur' : state.screen,
       };
+    case 'IMPORT_WORKS':
+      return { ...state, works: [...action.works, ...state.works], screen: 'korrektur' };
     case 'TOGGLE_CHIP':
       return {
         ...state,
@@ -99,6 +135,8 @@ function reducer(state: CollectionState, action: Action): CollectionState {
       };
     case 'TOGGLE_GALLERY_VIEW':
       return { ...state, galleryView: state.galleryView === 'masonry' ? 'list' : 'masonry' };
+    case 'SET_GALLERY_VIEW':
+      return { ...state, galleryView: action.view };
     case 'SET_SEARCH_QUERY':
       return { ...state, searchQuery: action.query };
     case 'CONFIRM_WORK':
@@ -110,6 +148,8 @@ function reducer(state: CollectionState, action: Action): CollectionState {
         ...state,
         works: state.works.map((w) => (w.id === action.id ? { ...w, [action.field]: action.value } : w)),
       };
+    case 'RESTORE_WORKS':
+      return { ...state, works: action.works };
     case 'SHOW_TOAST':
       return { ...state, toast: action.message };
     case 'HIDE_TOAST':
@@ -126,15 +166,18 @@ interface CollectionActions {
   closeScreen(): void;
   startSingleScan(): void;
   startDoubleScan(): void;
-  startBulkImport(): void;
+  importFromLibrary(): void;
   confirmScanResult(): void;
   editScanResult(): void;
   toggleChip(label: string): void;
   toggleGalleryView(): void;
+  setGalleryView(view: GalleryView): void;
   setSearchQuery(query: string): void;
   confirmWork(id: number): void;
   toggleEdit(id: number): void;
   updateWorkField(id: number, field: EditableField, value: string): void;
+  restoreWorks(works: Werk[]): void;
+  showToast(message: string): void;
 }
 
 interface CollectionContextValue {
@@ -145,9 +188,27 @@ interface CollectionContextValue {
 const CollectionContext = createContext<CollectionContextValue | null>(null);
 
 export function CollectionProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(reducer, undefined, makeInitialState);
   const toastTimer = useRef<number | undefined>(undefined);
   const scanRequestId = useRef(0);
+  // Lazy statt useRef(Date.now()) — vermeidet einen unreinen Aufruf während des Renderns.
+  const idCounter = useRef(0);
+  const nextId = () => {
+    if (idCounter.current === 0) idCounter.current = Date.now();
+    return ++idCounter.current;
+  };
+
+  useEffect(() => {
+    persistWorks(state.works);
+  }, [state.works]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(GALLERY_VIEW_STORAGE_KEY, state.galleryView);
+    } catch {
+      // best-effort, s. persistWorks
+    }
+  }, [state.galleryView]);
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
@@ -157,12 +218,41 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
     toastTimer.current = window.setTimeout(() => dispatch({ type: 'HIDE_TOAST' }), 2200);
   };
 
-  const startScan = (mode: Exclude<ScanMode, null>) => {
+  const startScan = async (mode: Exclude<ScanMode, null>) => {
+    const photo = await capturePhoto();
+    if (!photo) return; // Nutzer hat die Kamera abgebrochen
+
+    let photoDataUrl: string;
+    let aspect: string;
+    try {
+      const compressed = await fileToCompressedPhoto(photo);
+      photoDataUrl = compressed.dataUrl;
+      aspect = compressed.aspect;
+    } catch (e) {
+      console.error('Foto konnte nicht verarbeitet werden', e);
+      return;
+    }
+
+    let tafelPhotoDataUrl: string | undefined;
+    if (mode === 'double') {
+      const tafelPhoto = await capturePhoto();
+      if (tafelPhoto) {
+        try {
+          tafelPhotoDataUrl = (await fileToCompressedPhoto(tafelPhoto)).dataUrl;
+        } catch (e) {
+          console.error('Tafel-Foto konnte nicht verarbeitet werden', e);
+        }
+      }
+    }
+
     dispatch({ type: 'START_SCAN', mode });
     const requestId = ++scanRequestId.current;
     recognizeArtwork(mode).then((result) => {
       if (requestId !== scanRequestId.current) return; // veraltete Anfrage — Screen verlassen
-      dispatch({ type: 'SCAN_RESULT_READY', result });
+      dispatch({
+        type: 'SCAN_RESULT_READY',
+        result: { ...result, aspect, photoDataUrl, tafelPhotoDataUrl, hasTafel: !!tafelPhotoDataUrl },
+      });
     });
   };
 
@@ -171,32 +261,57 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
     openDetail: (id) => dispatch({ type: 'OPEN_DETAIL', id }),
     openArtist: (call) => dispatch({ type: 'OPEN_ARTIST', call }),
     closeScreen: () => dispatch({ type: 'CLOSE_SCREEN' }),
-    startSingleScan: () => startScan('single'),
-    startDoubleScan: () => startScan('double'),
-    startBulkImport: () => dispatch({ type: 'START_BULK_IMPORT' }),
+    startSingleScan: () => void startScan('single'),
+    startDoubleScan: () => void startScan('double'),
+    importFromLibrary: async () => {
+      const files = await pickPhotos();
+      if (!files.length) return;
+      const newWorks: Werk[] = [];
+      for (const file of files) {
+        try {
+          const { dataUrl, aspect } = await fileToCompressedPhoto(file);
+          newWorks.push({
+            id: nextId(),
+            artistFull: '',
+            artistCall: 'Unbekannt',
+            isNotname: true,
+            title: 'Unbenanntes Werk',
+            year: '',
+            epoch: '',
+            genre: '',
+            museum: '',
+            room: '',
+            city: '',
+            material: '',
+            tags: [],
+            notes: '',
+            status: 'zu prüfen',
+            confidence: 'Vorschlag, bitte prüfen',
+            hasTafel: false,
+            aspect,
+            photoDataUrl: dataUrl,
+            dateAdded: 'gerade eben',
+          });
+        } catch (e) {
+          console.error('Foto aus der Mediathek konnte nicht verarbeitet werden', e);
+        }
+      }
+      if (newWorks.length) dispatch({ type: 'IMPORT_WORKS', works: newWorks });
+    },
     confirmScanResult: () => {
       if (!state.scanResult) return;
-      const work: Werk = {
-        ...state.scanResult,
-        id: state.nextId,
-        status: state.scanResult.confidence === 'sicher' ? 'vollständig' : 'zu prüfen',
-        dateAdded: 'gerade eben',
-      };
+      const work: Werk = { ...state.scanResult, id: nextId(), status: 'zu prüfen', dateAdded: 'gerade eben' };
       dispatch({ type: 'ADD_WORK', work, goToKorrektur: false });
       showToast('Werk hinzugefügt');
     },
     editScanResult: () => {
       if (!state.scanResult) return;
-      const work: Werk = {
-        ...state.scanResult,
-        id: state.nextId,
-        status: 'zu prüfen',
-        dateAdded: 'gerade eben',
-      };
+      const work: Werk = { ...state.scanResult, id: nextId(), status: 'zu prüfen', dateAdded: 'gerade eben' };
       dispatch({ type: 'ADD_WORK', work, goToKorrektur: true });
     },
     toggleChip: (label) => dispatch({ type: 'TOGGLE_CHIP', label }),
     toggleGalleryView: () => dispatch({ type: 'TOGGLE_GALLERY_VIEW' }),
+    setGalleryView: (view) => dispatch({ type: 'SET_GALLERY_VIEW', view }),
     setSearchQuery: (query) => dispatch({ type: 'SET_SEARCH_QUERY', query }),
     confirmWork: (id) => {
       dispatch({ type: 'CONFIRM_WORK', id });
@@ -204,6 +319,11 @@ export function CollectionProvider({ children }: { children: ReactNode }) {
     },
     toggleEdit: (id) => dispatch({ type: 'TOGGLE_EDIT', id }),
     updateWorkField: (id, field, value) => dispatch({ type: 'UPDATE_WORK_FIELD', id, field, value }),
+    restoreWorks: (works) => {
+      dispatch({ type: 'RESTORE_WORKS', works });
+      showToast('Sicherung wiederhergestellt');
+    },
+    showToast,
   };
 
   return <CollectionContext.Provider value={{ state, actions }}>{children}</CollectionContext.Provider>;
