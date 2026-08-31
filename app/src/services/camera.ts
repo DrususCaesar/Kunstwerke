@@ -20,17 +20,29 @@ function pickFiles(opts: { capture: boolean; multiple: boolean }): Promise<File[
     input.accept = 'image/*';
     input.multiple = opts.multiple;
     if (opts.capture) input.capture = 'environment';
+    // Auf iOS/iPadOS Safari (insb. als installierte PWA) öffnet .click() den
+    // nativen Dialog nur zuverlässig, wenn das Element wirklich im DOM hängt
+    // — ein nur im Speicher erzeugtes <input> genügt dort nicht immer.
+    input.style.position = 'fixed';
+    input.style.top = '-1000px';
+    input.style.left = '-1000px';
+    document.body.appendChild(input);
 
     let settled = false;
     const finish = (files: File[]) => {
       if (settled) return;
       settled = true;
+      window.removeEventListener('focus', onWindowFocus);
+      input.remove();
       resolve(files);
     };
     input.onchange = () => finish(input.files ? Array.from(input.files) : []);
-    // 'cancel' ist auf modernen Browsern (inkl. iOS/iPadOS Safari) verfügbar —
-    // ohne diesen Listener bliebe ein abgebrochener Dialog sonst hängen.
+    // 'cancel' ist nicht auf allen iOS/iPadOS-Safari-Versionen verlässlich —
+    // als Fallback gilt: kommt der Fenster-Fokus zurück, ohne dass 'change'
+    // gefeuert hat, wurde der Dialog abgebrochen.
+    const onWindowFocus = () => window.setTimeout(() => finish([]), 300);
     input.oncancel = () => finish([]);
+    window.addEventListener('focus', onWindowFocus);
     input.click();
   });
 }
