@@ -1,17 +1,23 @@
 import type { Confidence, Werk } from '../types';
 import type { CropBox } from '../lib/image';
+import { recognizeTafelText } from './ocr';
+import { parseTafelText } from '../lib/tafelParser';
+import { detectArtworkCrop } from '../lib/autoCrop';
 
 /**
- * KI-gestützte Werkerkennung — Konzept Abschnitt 4.1, 4.2, 7.
+ * KI-gestützte Werkerkennung — Konzept Abschnitt 4.1, 4.2, 7. Zwei Stufen:
  *
- * Ruft `/api/recognize` (Vercel Serverless Function, s. api/recognize.ts)
- * auf, die serverseitig die Claude Vision API mit dem ANTHROPIC_API_KEY
- * aufruft — der Key liegt dort in einer Vercel-Umgebungsvariable, niemals
- * im Client. Ist die Function nicht erreichbar/nicht konfiguriert (lokale
- * Entwicklung ohne Vercel, oder der Key fehlt noch), fällt diese Funktion
- * ohne sichtbaren Fehler auf ein ehrlich leeres Ergebnis zurück — die
- * Nutzerin trägt die Felder dann wie bisher über "Bearbeiten"/"Korrigieren"
- * selbst ein.
+ * 1. `/api/recognize` (Vercel Serverless Function, s. api/recognize.ts) —
+ *    Claude Vision API, serverseitig mit dem ANTHROPIC_API_KEY aus einer
+ *    Vercel-Umgebungsvariable aufgerufen (nie im Client). Beste Qualität.
+ * 2. Ist die Function nicht erreichbar/nicht konfiguriert (kein Key
+ *    hinterlegt, oder lokale Entwicklung ohne Vercel), fällt diese Funktion
+ *    automatisch auf eine kostenlose, clientseitige Erkennung zurück:
+ *    Tesseract.js liest das Tafelfoto (services/ocr.ts), eine Heuristik
+ *    parst den Rohtext in Felder (lib/tafelParser.ts), und eine einfache
+ *    Bildanalyse schlägt einen Zuschnitt vor (lib/autoCrop.ts). Deutlich
+ *    unzuverlässiger als Stufe 1, aber ohne Key nutzbar. Findet auch das
+ *    nichts Brauchbares, bleibt es beim ehrlich leeren Ergebnis wie bisher.
  */
 
 export type RecognitionResult = Omit<Werk, 'id' | 'status' | 'dateAdded'>;
@@ -65,19 +71,19 @@ export interface RecognizeOutcome {
   crop: CropBox | null;
 }
 
-export async function recognizeArtwork({ primaryDataUrl, tafelDataUrl }: RecognizeInput): Promise<RecognizeOutcome> {
+async function callVisionApi(input: RecognizeInput): Promise<RecognizeOutcome | null> {
   try {
     const res = await fetch('/api/recognize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ primaryImage: primaryDataUrl, tafelImage: tafelDataUrl }),
+      body: JSON.stringify({ primaryImage: input.primaryDataUrl, tafelImage: input.tafelDataUrl }),
     });
     if (!res.ok) {
       // 503 = kein Key hinterlegt, 404 = lokale Entwicklung ohne Vercel — beides erwartbar, kein Fehlerlog nötig.
       if (res.status !== 503 && res.status !== 404) {
         console.warn('recognizeArtwork: /api/recognize antwortete mit', res.status);
       }
-      return { fields: { ...blankResult(), confidence: 'Vorschlag, bitte prüfen' }, crop: null };
+      return null;
     }
     const data: RecognizeApiResponse = await res.json();
     return {
@@ -102,7 +108,49 @@ export async function recognizeArtwork({ primaryDataUrl, tafelDataUrl }: Recogni
       crop: data.crop,
     };
   } catch (e) {
-    console.error('recognizeArtwork: Anfrage fehlgeschlagen', e);
-    return { fields: { ...blankResult(), confidence: 'Vorschlag, bitte prüfen' }, crop: null };
+    console.error('recognizeArtwork: /api/recognize-Anfrage fehlgeschlagen', e);
+    return null;
   }
+}
+
+/** Kostenlose Notlösung ohne Vision API: OCR + Heuristik-Parsing + Zuschnitt-Analyse. */
+async function recognizeLocally(input: RecognizeInput): Promise<RecognizeOutcome> {
+  const cropPromise = detectArtworkCrop(input.primaryDataUrl).catch((e) => {
+    console.error('lokale Zuschnitt-Analyse fehlgeschlagen', e);
+    return null;
+  });
+
+  let fields = blankResult();
+  if (input.tafelDataUrl) {
+    try {
+      const ocr = await recognizeTafelText(input.tafelDataUrl);
+      const parsed = parseTafelText(ocr.text);
+      const foundSomething = parsed.title || parsed.artistCall !== 'Unbekannt' || parsed.museum || parsed.material;
+      if (foundSomething) {
+        fields = {
+          ...fields,
+          title: parsed.title || fields.title,
+          artistFull: parsed.artistFull,
+          artistCall: parsed.artistCall,
+          isNotname: parsed.isNotname,
+          year: parsed.year,
+          museum: parsed.museum,
+          city: parsed.city,
+          material: parsed.material,
+          tags: parsed.tags,
+        };
+      }
+    } catch (e) {
+      console.error('lokale OCR fehlgeschlagen', e);
+    }
+  }
+
+  const crop = await cropPromise;
+  return { fields: { ...fields, confidence: 'Vorschlag, bitte prüfen' }, crop };
+}
+
+export async function recognizeArtwork(input: RecognizeInput): Promise<RecognizeOutcome> {
+  const viaApi = await callVisionApi(input);
+  if (viaApi) return viaApi;
+  return recognizeLocally(input);
 }

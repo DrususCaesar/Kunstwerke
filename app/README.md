@@ -2,14 +2,15 @@
 
 Private Katalogisierungs-App für selbst fotografierte Kunstwerke aus Museumsbesuchen. Ursprünglich als React/Vite-PWA-Reimplementierung des Claude-Design-Handoffs in `project/design_handoff_kunstwerke_app/` gestartet, seither Struktur und Bildsprache an einer Referenz-App angeglichen (Home-Dashboard, 4-Tab-Navigation).
 
-## KI-Erkennung aktivieren (Claude Vision)
+## KI-Erkennung — zwei Stufen
 
-Scan und Bulk-Import erkennen Künstler/Titel/Jahr/Museum/Material automatisch aus dem Werk- und Tafelfoto, sobald ein Anthropic API-Key hinterlegt ist — läuft über `api/recognize.ts` (Vercel Serverless Function), der Key bleibt dabei serverseitig:
+Scan und Bulk-Import versuchen die Erkennung automatisch in dieser Reihenfolge:
 
-1. Vercel-Projekt → **Settings → Environment Variables** → `ANTHROPIC_API_KEY` mit dem echten Key eintragen (Production **und** Preview), neu deployen.
-2. Fertig — kein Code ändern nötig. Ohne Key antwortet die Function mit 503, der Client fällt automatisch auf die bisherige ehrliche Leer-Erfassung zurück (kein sichtbarer Fehler).
+1. **Claude Vision** (`api/recognize.ts`, Vercel Serverless Function) — beste Qualität, braucht einen Anthropic API-Key. Aktivieren: Vercel-Projekt → **Settings → Environment Variables** → `ANTHROPIC_API_KEY` eintragen (Production **und** Preview), neu deployen. Kein Code ändern nötig. Der Key bleibt serverseitig, landet nie im Client.
+2. **Kostenlose Notlösung ohne Key** (`services/ocr.ts` + `lib/tafelParser.ts` + `lib/autoCrop.ts`): antwortet Stufe 1 nicht (503 ohne Key, 404 lokal ohne Vercel, oder ein Netzwerkfehler), liest Tesseract.js (clientseitige OCR, läuft komplett im Browser) das Tafelfoto in vier Rotationen aus und wählt das Ergebnis mit der höchsten Konfidenz; eine Heuristik parst Künstler/Titel/Jahr/Material/Museum aus dem Rohtext (u. a. über mehrfach im Text wiederkehrende großgeschriebene Wörter — auf mehrsprachigen Tafeln bleiben Eigennamen über die Sprachen hinweg gleich, anders als der restliche Text). Für den Zuschnitt sucht eine einfache Kantenanalyse den kontrastreichen Bereich (das Werk) gegenüber ruhigeren Rand­streifen (die Wand). Spürbar unzuverlässiger als Stufe 1 und liefert nie "sicher" — aber kostenlos und ohne Account.
+3. Findet auch Stufe 2 nichts Brauchbares, bleibt es beim ehrlich leeren Ergebnis wie im ersten Wurf — Titel/Künstler trägt man über „Bearbeiten"/„Korrigieren" selbst ein.
 
-Lokal (`npm run dev`) läuft `/api/recognize` nicht mit (Vite dev-Server kennt keine Vercel-Functions) — für den vollen Flow lokal `vercel dev` verwenden, sonst greift derselbe Fallback.
+Lokal (`npm run dev`) läuft `/api/recognize` nicht mit (Vite dev-Server kennt keine Vercel-Functions) — Stufe 2 greift dort automatisch. Für den vollen Vision-Flow lokal `vercel dev` verwenden.
 
 ## Stand dieser Implementierung
 
@@ -22,7 +23,7 @@ Lokal (`npm run dev`) läuft `/api/recognize` nicht mit (Vite dev-Server kennt k
 
 Die App arbeitet mit **echten, selbst aufgenommenen/importierten Fotos** statt Beispieldaten — die Sammlung startet leer und persistiert in `localStorage`:
 
-- **KI-Erkennung** (`api/recognize.ts` + `services/recognition.ts`): mit hinterlegtem `ANTHROPIC_API_KEY` liest Claude Vision das Tafelfoto (auch bei Schrägaufnahme), extrahiert Künstler (voller Name + Rufname getrennt, deutsche kanonische Schreibweise, Notnamen-Erkennung), Titel, Jahr, Museum, Material, Tags und vergibt die Konfidenz ehrlich ("sicher" nur bei eindeutig lesbarem Tafeltext). Zusätzlich schlägt sie einen Zuschnitt vor, der die Wand um das Werk entfernt (`lib/image.ts#cropPhoto`). Ohne Key bleiben die Felder wie bisher ehrlich leer statt eines vorgetäuschten Treffers — Titel/Künstler trägt man dann über „Bearbeiten"/„Korrigieren" selbst ein.
+- **KI-Erkennung** (`services/recognition.ts`, s. Abschnitt oben für die zwei Stufen): mit `ANTHROPIC_API_KEY` liest Claude Vision das Tafelfoto (auch bei Schrägaufnahme), extrahiert Künstler (voller Name + Rufname getrennt, deutsche kanonische Schreibweise, Notnamen-Erkennung), Titel, Jahr, Museum, Material, Tags und vergibt die Konfidenz ehrlich ("sicher" nur bei eindeutig lesbarem Tafeltext), plus Zuschnitt-Vorschlag. Ohne Key übernimmt die kostenlose OCR-Notlösung, ohne jeden Treffer bleiben die Felder ehrlich leer statt eines vorgetäuschten Ergebnisses.
 - Künstler-Porträts holt `services/artistPortrait.ts` automatisch über die kostenlose Wikipedia/Wikimedia-API (kein Key), sobald ein Werk mit echtem Künstlernamen bestätigt wird.
 - Standort wird beim Scan/Import best-effort per Browser-Geolocation erfasst (`services/geolocation.ts`, abschaltbar in den Einstellungen) — Basis für Karte und Museen-in-der-Nähe.
 - **Einstellungen**: Export als echter PDF-Katalog (`lib/pdfCatalog.ts`, jsPDF, per Klick nachgeladen), lokale Sicherung als JSON zum Herunterladen/Wiederherstellen (`lib/backup.ts`), Standort-Erfassung an/aus. Freigabe & Zugriffsrechte bleibt Platzhalter (braucht Supabase).
